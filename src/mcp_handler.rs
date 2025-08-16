@@ -1,12 +1,12 @@
 use anyhow::Result;
 use rmcp::{
+    ErrorData as McpError, ServerHandler,
     model::{
-        CallToolRequestParam, CallToolResult, Content, InitializeRequestParam, InitializeResult,
-        ListToolsResult, PaginatedRequestParam, ServerCapabilities, ServerInfo, Tool,
-        Implementation, ProtocolVersion, CallToolRequestMethod,
+        CallToolRequestMethod, CallToolRequestParam, CallToolResult, Content, Implementation,
+        InitializeRequestParam, InitializeResult, ListToolsResult, PaginatedRequestParam,
+        ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
     },
     service::{RequestContext, RoleServer},
-    ServerHandler, Error as McpError,
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::info;
@@ -47,12 +47,14 @@ impl TaskMcpHandler {
     }
 
     /// Handle the list_tasks tool call
-    async fn handle_list_tasks(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Result<CallToolResult, McpError> {
-        let task_collection = self
-            .task_service
-            .load_tasks()
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to load tasks: {}", e), None))?;
+    async fn handle_list_tasks(
+        &self,
+        arguments: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> Result<CallToolResult, McpError> {
+        let task_collection =
+            self.task_service.load_tasks().await.map_err(|e| {
+                McpError::internal_error(format!("Failed to load tasks: {}", e), None)
+            })?;
 
         let filters: HashMap<String, String> = arguments
             .unwrap_or_default()
@@ -60,24 +62,25 @@ impl TaskMcpHandler {
             .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
             .collect();
 
-        let filtered_tasks = self.task_service.filter_tasks(&task_collection.tasks, &filters);
+        let filtered_tasks = self
+            .task_service
+            .filter_tasks(&task_collection.tasks, &filters);
 
         let summary = if filtered_tasks.is_empty() {
             "No tasks found with the specified filters.".to_string()
         } else {
             let task_list = self.format_task_list(&filtered_tasks);
-            format!(
-                "Found {} task(s):\n\n{}",
-                filtered_tasks.len(),
-                task_list
-            )
+            format!("Found {} task(s):\n\n{}", filtered_tasks.len(), task_list)
         };
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
     }
 
     /// Handle the get_task tool call
-    async fn handle_get_task(&self, arguments: serde_json::Map<String, serde_json::Value>) -> Result<CallToolResult, McpError> {
+    async fn handle_get_task(
+        &self,
+        arguments: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<CallToolResult, McpError> {
         let task_id = arguments
             .get("id")
             .and_then(|v| v.as_str())
@@ -88,10 +91,13 @@ impl TaskMcpHandler {
             .find_task_by_id(task_id)
             .await
             .map_err(|e| McpError::internal_error(format!("Failed to load tasks: {}", e), None))?
-            .ok_or_else(|| McpError::invalid_params(format!("Task not found: {}", task_id), None))?;
+            .ok_or_else(|| {
+                McpError::invalid_params(format!("Task not found: {}", task_id), None)
+            })?;
 
-        let task_details = serde_json::to_string_pretty(&task)
-            .map_err(|e| McpError::internal_error(format!("Failed to serialize task: {}", e), None))?;
+        let task_details = serde_json::to_string_pretty(&task).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize task: {}", e), None)
+        })?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Task Details:\n```json\n{}\n```",
@@ -101,14 +107,14 @@ impl TaskMcpHandler {
 
     /// Handle the task_stats tool call
     async fn handle_task_stats(&self) -> Result<CallToolResult, McpError> {
-        let stats = self
-            .task_service
-            .get_task_statistics()
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to get task statistics: {}", e), None))?;
+        let stats = self.task_service.get_task_statistics().await.map_err(|e| {
+            McpError::internal_error(format!("Failed to get task statistics: {}", e), None)
+        })?;
 
         let formatted_stats = stats.format_stats();
-        Ok(CallToolResult::success(vec![Content::text(formatted_stats)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            formatted_stats,
+        )]))
     }
 }
 
@@ -116,9 +122,7 @@ impl ServerHandler for TaskMcpHandler {
     fn get_info(&self) -> ServerInfo {
         InitializeResult {
             protocol_version: ProtocolVersion::LATEST,
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation::from_build_env(),
             instructions: None,
         }
@@ -140,13 +144,16 @@ impl ServerHandler for TaskMcpHandler {
 
     async fn list_tools(
         &self,
-        _request: PaginatedRequestParam,
+        _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
         let tools = vec![
             Tool {
                 name: "list_tasks".into(),
-                description: "List all tasks, optionally filtered by status, priority, assignee, or tag".into(),
+                description: Some(
+                    "List all tasks, optionally filtered by status, priority, assignee, or tag"
+                        .into(),
+                ),
                 input_schema: Arc::new({
                     let schema = serde_json::json!({
                         "type": "object",
@@ -177,10 +184,12 @@ impl ServerHandler for TaskMcpHandler {
                         _ => panic!("Schema must be an object"),
                     }
                 }),
+                output_schema: None,
+                annotations: None,
             },
             Tool {
                 name: "get_task".into(),
-                description: "Get detailed information about a specific task by ID".into(),
+                description: Some("Get detailed information about a specific task by ID".into()),
                 input_schema: Arc::new({
                     let schema = serde_json::json!({
                         "type": "object",
@@ -198,10 +207,14 @@ impl ServerHandler for TaskMcpHandler {
                         _ => panic!("Schema must be an object"),
                     }
                 }),
+                output_schema: None,
+                annotations: None,
             },
             Tool {
                 name: "task_stats".into(),
-                description: "Get statistics about tasks (counts by status, priority, etc.)".into(),
+                description: Some(
+                    "Get statistics about tasks (counts by status, priority, etc.)".into(),
+                ),
                 input_schema: Arc::new({
                     let schema = serde_json::json!({
                         "type": "object",
@@ -213,10 +226,12 @@ impl ServerHandler for TaskMcpHandler {
                         _ => panic!("Schema must be an object"),
                     }
                 }),
+                output_schema: None,
+                annotations: None,
             },
         ];
 
-        Ok(ListToolsResult { 
+        Ok(ListToolsResult {
             tools,
             next_cursor: None,
         })

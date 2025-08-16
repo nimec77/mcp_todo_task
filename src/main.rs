@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
 
     // Load configuration from environment
     let config = AppConfig::from_env();
-    
+
     // Set up the service layers
     let storage = TaskStorage::new(config.tasks_file_path);
     let task_service = TaskService::new(storage);

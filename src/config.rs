@@ -40,7 +40,12 @@ mod tests {
     fn test_default_config() {
         let config = AppConfig::from_env();
         // Should use default path when env var is not set
-        assert!(config.tasks_file_path.to_string_lossy().contains("tasks.json"));
+        assert!(
+            config
+                .tasks_file_path
+                .to_string_lossy()
+                .contains("tasks.json")
+        );
     }
 
     #[test]
@@ -49,10 +54,10 @@ mod tests {
         unsafe {
             env::set_var("TASKS_FILE", custom_path);
         }
-        
+
         let config = AppConfig::from_env();
         assert_eq!(config.tasks_file_path.to_string_lossy(), custom_path);
-        
+
         unsafe {
             env::remove_var("TASKS_FILE");
         }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-use crate::models::{Task, TaskCollection, TaskStatus, Priority};
+use crate::models::{Priority, Task, TaskCollection, TaskStatus};
 use crate::storage::TaskStorage;
 
 /// Service for managing task operations and business logic
@@ -79,7 +79,11 @@ impl TaskService {
     /// Find a task by ID
     pub async fn find_task_by_id(&self, task_id: &str) -> Result<Option<Task>> {
         let task_collection = self.load_tasks().await?;
-        Ok(task_collection.tasks.iter().find(|t| t.id == task_id).cloned())
+        Ok(task_collection
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .cloned())
     }
 
     /// Get task statistics
