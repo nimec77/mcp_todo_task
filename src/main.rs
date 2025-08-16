@@ -5,8 +5,10 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize tracing to stderr (stdout is used for JSON-RPC)
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
 
     info!("Starting Task Manager MCP Server");
 
