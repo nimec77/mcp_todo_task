@@ -7,7 +7,7 @@ cargo build --bin mcp_todo_task
 echo "Server built successfully."
 
 # --- Server command ---
-server="target/debug/mcp_todo_task"
+server="target/release/mcp_todo_task"
 
 echo "Starting MCP server test..."
 

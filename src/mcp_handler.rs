@@ -25,27 +25,6 @@ impl TaskMcpHandler {
         Self { task_service }
     }
 
-    /// Format a list of tasks as a human-readable string
-    fn format_task_list(&self, tasks: &[crate::models::Task]) -> String {
-        tasks
-            .iter()
-            .map(|task| {
-                format!(
-                    "- **{}** (ID: {}) - Status: {:?}, Priority: {:?}\n  Description: {}\n  Tags: [{}]{}{}",
-                    task.title,
-                    task.id,
-                    task.status,
-                    task.priority,
-                    task.description,
-                    task.tags.join(", "),
-                    task.assignee.as_ref().map(|a| format!("\n  Assignee: {}", a)).unwrap_or_default(),
-                    task.due_date.as_ref().map(|d| format!("\n  Due: {}", d)).unwrap_or_default()
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n")
-    }
-
     /// Handle the list_tasks tool call
     async fn handle_list_tasks(
         &self,
@@ -66,14 +45,17 @@ impl TaskMcpHandler {
             .task_service
             .filter_tasks(&task_collection.tasks, &filters);
 
-        let summary = if filtered_tasks.is_empty() {
-            "No tasks found with the specified filters.".to_string()
-        } else {
-            let task_list = self.format_task_list(&filtered_tasks);
-            format!("Found {} task(s):\n\n{}", filtered_tasks.len(), task_list)
-        };
+        let response = serde_json::json!({
+            "count": filtered_tasks.len(),
+            "tasks": filtered_tasks,
+            "filters_applied": filters
+        });
 
-        Ok(CallToolResult::success(vec![Content::text(summary)]))
+        let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize response: {}", e), None)
+        })?;
+
+        Ok(CallToolResult::success(vec![Content::text(response_text)]))
     }
 
     /// Handle the get_task tool call
@@ -95,14 +77,15 @@ impl TaskMcpHandler {
                 McpError::invalid_params(format!("Task not found: {}", task_id), None)
             })?;
 
-        let task_details = serde_json::to_string_pretty(&task).map_err(|e| {
+        let response = serde_json::json!({
+            "task": task
+        });
+
+        let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
             McpError::internal_error(format!("Failed to serialize task: {}", e), None)
         })?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Task Details:\n```json\n{}\n```",
-            task_details
-        ))]))
+        Ok(CallToolResult::success(vec![Content::text(response_text)]))
     }
 
     /// Handle the task_stats tool call
@@ -111,10 +94,17 @@ impl TaskMcpHandler {
             McpError::internal_error(format!("Failed to get task statistics: {}", e), None)
         })?;
 
-        let formatted_stats = stats.format_stats();
-        Ok(CallToolResult::success(vec![Content::text(
-            formatted_stats,
-        )]))
+        let response = serde_json::json!({
+            "total_tasks": stats.total_tasks,
+            "status_counts": stats.status_counts,
+            "priority_counts": stats.priority_counts
+        });
+
+        let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
+            McpError::internal_error(format!("Failed to serialize statistics: {}", e), None)
+        })?;
+
+        Ok(CallToolResult::success(vec![Content::text(response_text)]))
     }
 }
 
