@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use anyhow::Result;
 
 /// Application configuration
 #[derive(Debug, Clone)]
@@ -8,6 +9,14 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    /// Load configuration from .env file and environment variables
+    pub fn load() -> Result<Self> {
+        // Load .env file if it exists (ignores errors if file doesn't exist)
+        dotenv::dotenv().ok();
+        
+        Ok(Self::from_env())
+    }
+
     /// Create configuration from environment variables
     pub fn from_env() -> Self {
         let tasks_file_path = std::env::var("TASKS_FILE")
@@ -35,6 +44,18 @@ impl Default for AppConfig {
 mod tests {
     use super::*;
     use std::env;
+
+    #[test]
+    fn test_load_config() {
+        let config = AppConfig::load().expect("Failed to load config");
+        // Should use default path when env var is not set
+        assert!(
+            config
+                .tasks_file_path
+                .to_string_lossy()
+                .contains("tasks.json")
+        );
+    }
 
     #[test]
     fn test_default_config() {

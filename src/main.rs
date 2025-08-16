@@ -12,8 +12,8 @@ async fn main() -> Result<()> {
 
     info!("Starting Task Manager MCP Server");
 
-    // Load configuration from environment
-    let config = AppConfig::from_env();
+    // Load configuration from .env file and environment variables
+    let config = AppConfig::load()?;
 
     // Set up the service layers
     let storage = TaskStorage::new(config.tasks_file_path);

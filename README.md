@@ -90,16 +90,51 @@ The server communicates via **stdin/stdout** using the MCP protocol, making it c
 
 ## 🔧 Configuration
 
-The server supports the following environment variables:
+The server supports configuration through environment variables and `.env` files. Configuration is loaded in the following order:
+
+1. `.env` file (if present)
+2. Environment variables
+3. Default values
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TASKS_FILE` | `./data/tasks.json` | Path to the JSON file containing task data |
 
+### .env File Configuration
+
+Create a `.env` file in the project root to configure the application:
+
+```bash
+# Copy the example file
+cp env.example .env
+
+# Edit the configuration
+nano .env
+```
+
+Example `.env` file:
+```env
+# Task Manager MCP Server Configuration
+# Path to the tasks JSON file (default: ./data/tasks.json)
+TASKS_FILE=./data/tasks.json
+
+# Optional: Log level for tracing (default: info)
+# RUST_LOG=info
+
+# Optional: Enable debug mode (default: false)
+# DEBUG=false
+```
+
 ### Example Configuration
 
 ```bash
-# Use a different task file
+# Use a different task file via .env file
+echo "TASKS_FILE=/home/user/my-tasks.json" > .env
+cargo run
+
+# Or via environment variable
 export TASKS_FILE="/home/user/my-tasks.json"
 cargo run
 
@@ -245,6 +280,7 @@ The project uses carefully selected, high-quality Rust crates:
 | `anyhow` | 1.0 | Error handling and context |
 | `tracing` | 0.1 | Structured logging |
 | `tracing-subscriber` | 0.3 | Logging configuration |
+| `dotenv` | 0.15 | Environment variable loading from .env files |
 
 ## 🧪 Testing
 
